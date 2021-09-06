@@ -10,8 +10,28 @@ set -e
 apt_install() {
    echo "Installing system tools"
 
-   DISTRO=`lsb_release -a 2>&1 | egrep 'Distributor:\s+' | cut -d':' -f2 | tr -d '\t'`
+   # DISTRO=`lsb_release -a 2>&1 | egrep 'Distributor:\s+' | cut -d':' -f2 | tr -d '\t'`
    CODENAME=`lsb_release -a 2>&1 | egrep 'Codename:\s+' | cut -d':' -f2 | tr -d '\t'`
+
+   # Find linux distro (kudos https://unix.stackexchange.com/questions/6345/how-can-i-get-distribution-name-and-version-number-in-a-simple-shell-script)
+   if [ -f /etc/os-release ]; then
+      # freedesktop.org and systemd
+      . /etc/os-release
+      DISTRO=$NAME
+   elif type lsb_release >/dev/null 2>&1; then
+      # linuxbase.org
+      DISTRO=$(lsb_release -si)
+   elif [ -f /etc/lsb-release ]; then
+      # For some versions of Debian/Ubuntu without lsb_release command
+      . /etc/lsb-release
+      DISTRO=$DISTRIB_ID
+   elif [ -f /etc/debian_version ]; then
+      # Older Debian/Ubuntu/etc.
+      DISTRO=Debian
+   else
+      # Fall back to uname, e.g. "Linux <version>", also works for BSD, etc.
+      DISTRO=$(uname -s)
+   fi
 
    # We need to know who runs non-root commands
    if [[ $1 == "" ]]; then
@@ -30,10 +50,13 @@ apt_install() {
    else
       GCC_LATEST_REPO='deb http://deb.debian.org/debian testing main'
    fi
-
+   echo "$GCC_LATEST_REPO"
    apt-get update
+   echo "d1"
    apt-get dist-upgrade -y
+   echo "d2"
    apt-get install -y curl gnupg wget software-properties-common
+   echo "d3"
    wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -
    add-apt-repository "deb http://apt.llvm.org/$CODENAME/ llvm-toolchain-$CODENAME main"
    add-apt-repository "${GCC_LATEST_REPO}"
@@ -94,6 +117,6 @@ if [ ! -f "${PWD}/config/tools/apt-install.sh" ]; then
    exit 1
 fi
 
-apt_install
+apt_install $1
 install_cmake $1
 install_vcpkg
