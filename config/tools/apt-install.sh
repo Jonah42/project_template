@@ -9,7 +9,6 @@ set -e
 
 apt_install() {
    echo "Installing system tools"
-
    # DISTRO=`lsb_release -a 2>&1 | egrep 'Distributor:\s+' | cut -d':' -f2 | tr -d '\t'`
    CODENAME=`lsb_release -a 2>&1 | egrep 'Codename:\s+' | cut -d':' -f2 | tr -d '\t'`
 
@@ -45,28 +44,27 @@ apt_install() {
       exit 1
    fi
 
-   if [[ $DISTRO == 'Ubuntu' ]]; then
-      GCC_LATEST_REPO='ppa:ubuntu-toolchain-r/test'
-   else
+   # if [[ $DISTRO == 'Ubuntu' ]]; then
+      # GCC_LATEST_REPO='ppa:ubuntu-toolchain-r/test'
+   # else
       GCC_LATEST_REPO='deb http://deb.debian.org/debian testing main'
-   fi
-   echo "$GCC_LATEST_REPO"
-   apt-get update
-   echo "d1"
+   # fi
+   
+   apt-get update || true
    apt-get dist-upgrade -y
-   echo "d2"
    apt-get install -y curl gnupg wget software-properties-common
-   echo "d3"
    wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -
-   add-apt-repository "deb http://apt.llvm.org/$CODENAME/ llvm-toolchain-$CODENAME main"
-   add-apt-repository "${GCC_LATEST_REPO}"
-   apt-get update
+   add-apt-repository "deb http://apt.llvm.org/$CODENAME/ llvm-toolchain-$CODENAME main" || true
+   add-apt-repository "${GCC_LATEST_REPO}" || true
+   echo "d6"
+   apt-get update || true
+   echo "d7"
    apt-get install -y   \
        build-essential  \
        bzip2            \
        clang-format     \
-       clang-tidy       \
-       clang-tools      \
+       clang-tidy-11       \
+       clang-tools-11      \
        clang            \
        clangd           \
        gcc-10           \
@@ -74,8 +72,8 @@ apt_install() {
        gdb              \
        git              \
        gzip             \
-       libc++-dev       \
-       libc++abi-dev    \
+       libc++-11-dev       \
+       libc++abi-11-dev    \
        libclang-dev     \
        lld              \
        lldb             \
@@ -86,7 +84,7 @@ apt_install() {
        openssh-server   \
        python3          \
        python3-pip      \
-       python3-clang    \
+       python3-clang-11 \
        sed              \
        tar              \
        unzip            \
@@ -105,10 +103,14 @@ install_cmake() {
 }
 
 install_vcpkg() {
-   git clone https://github.com/microsoft/vcpkg.git
+   if [[ ! -d ./vcpkg ]]; then
+	   git clone https://github.com/Microsoft/vcpkg.git
+   fi
    pushd vcpkg
-   cp ../cmake/vcpkg/* triplets/community/.
+   git pull
+   cp ../config/vcpkg/* triplets/community/.
    ./bootstrap-vcpkg.sh -disableMetrics
+   ./vcpkg install --clean-after-build catch2:x64-linux-libcxx
    popd
 }
 
@@ -120,3 +122,4 @@ fi
 apt_install $1
 install_cmake $1
 install_vcpkg
+echo "Done :-)"
